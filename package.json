@@ -1,0 +1,39 @@
+{
+  "name": "dsh-busy-light",
+  "version": "0.8.6",
+  "description": "Busy board for the DSH Web GUI: a draggable tree panel — blue breathing for running Sessions, loud amber with a 待审批/待回答/待确认 tag for Sessions blocked on you, green for background completions that stay until you open that Session. Subagents hang off their parent as an indented branch; a finished Session whose subagents still work stays a muted context row instead of claiming done. Rows open their Session, the board remembers its seat, and the browser tab counts root Sessions only with self-healing icons and a breathing badge.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web"
+    }
+  },
+  "files": [
+    "lib",
+    "LICENSE",
+    "README.md",
+    "README.en.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-web",
+    "plugin",
+    "web",
+    "ui",
+    "session",
+    "status",
+    "subagent",
+    "favicon"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

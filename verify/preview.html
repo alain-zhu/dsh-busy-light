@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>dsh-busy-light preview</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23111827'/%3E%3C/svg%3E" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23e5e7eb'/%3E%3C/svg%3E" media="(prefers-color-scheme: dark)">
+<style>
+  /* Mock of the DSH shell so the overlay can be judged against a real-looking page. */
+  html,body{margin:0;height:100%}
+  body{background:#ffffff;font:14px/1.5 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;color:#111827}
+  body[data-theme="dark"]{background:#0f172a;color:#e5e7eb}
+  .mock-sidebar{position:fixed;inset:0 auto 0 0;width:264px;background:#f3f4f6;border-right:1px solid #e5e7eb}
+  body[data-theme="dark"] .mock-sidebar{background:#111827;border-color:#1f2937}
+  .mock-composer{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:min(760px,60vw);height:96px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+  body[data-theme="dark"] .mock-composer{background:#1f2937;border-color:#374151}
+  .mock-hint{position:fixed;top:28px;left:300px;font-size:13px;color:#6b7280;max-width:640px}
+  .mock-buttons{position:fixed;top:96px;left:300px;display:flex;flex-wrap:wrap;gap:8px;max-width:640px}
+  .mock-legend{position:fixed;top:220px;left:300px;font-size:13px;color:#6b7280;max-width:640px}
+  button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid #d1d5db;background:#fff;cursor:pointer}
+  body[data-theme="dark"] button{background:#1f2937;color:#e5e7eb;border-color:#374151}
+  kbd{font:inherit;padding:0 4px;border:1px solid #d1d5db;border-radius:4px}
+</style>
+</head>
+<body data-theme="light">
+  <div class="mock-sidebar"></div>
+  <div class="mock-hint">Mock DSH shell (left sidebar / centered composer). The overlay and the browser tab are the real
+    <code>lib/client.js</code> output: chips are driven by a fake <code>SessionListState</code> +
+    <code>SessionStatusSnapshot</code> below.</div>
+  <div class="mock-buttons">
+    <button data-preset="idle">空闲</button>
+    <button data-preset="two">A、B 运行</button>
+    <button data-preset="three">A、B、C 运行</button>
+    <button data-preset="waitingApproval">B 等审批</button>
+    <button data-preset="waitingQuestion">B 等回答</button>
+    <button data-preset="waitingPlan">A 等确认</button>
+    <button data-preset="backgroundDone">后台完成 A</button>
+    <button data-preset="oneDone">A 完成，B 继续</button>
+    <button data-preset="allDone">全部完成</button>
+    <button data-preset="viewDone">查看完成（清除）</button>
+    <button data-preset="restart">B 再跑一轮</button>
+    <button data-preset="subagent">子代理运行</button>
+    <button data-preset="pendingParent">主等回答 + 子代理运行</button>
+    <button data-preset="parentDoneChildRunning">主完成（未读）+ 子代理运行</button>
+    <button data-preset="many">8 个会话运行</button>
+    <button data-theme-toggle>切换主题</button>
+  </div>
+  <div class="mock-legend">
+    颜色：<b>蓝色</b> = 在跑，<b>琥珀</b> = 等你操作（审批 / 回答 / 计划确认，带「待…」标签，呼吸更急），
+    <b>绿色</b> = 后台完成且你还没看；切到那个会话（或点“查看完成”）绿灯和标签页计数立刻消失，没有定时器。
+    标签页同步 <code>🟠n 🔵n 🟢n ·</code> 前缀和带状态徽标的 favicon；空闲后恢复原图标。
+  </div>
+  <div class="mock-composer"></div>
+  <div id="light-root"></div>
+
+<script>
+  // Minimal React-compatible createElement that builds REAL DOM, so the plugin
+  // bundle under test runs unmodified in a real browser. Plus tiny hook runtime
+  // for the plugin's useEffect.
+  function createElement(type, props) {
+    if (typeof type === 'function') return type(props || {});
+    const el = document.createElement(type);
+    const attrs = props || {};
+    for (const key of Object.keys(attrs)) {
+      if (key === 'key') continue;
+      const value = attrs[key];
+      if (value === undefined || value === null || value === false) continue;
+      if (key === 'className') el.setAttribute('class', value);
+      else if (key === 'style' && typeof value === 'object') Object.assign(el.style, value);
+      else if (key.startsWith('on') && typeof value === 'function') {
+        el.addEventListener(key.slice(2).toLowerCase(), value);
+      } else el.setAttribute(key, String(value));
+    }
+    const kids = Array.prototype.slice.call(arguments, 2);
+    const add = (child) => {
+      if (child === null || child === undefined || child === false) return;
+      if (Array.isArray(child)) { child.forEach(add); return; }
+      el.appendChild(child && child.nodeType ? child : document.createTextNode(String(child)));
+    };
+    kids.forEach(add);
+    return el;
+  }
+
+  // --- tiny hook runtime (useEffect) ----------------------------------------
+  const hookSlots = [];
+  let hookIndex = 0;
+  let pendingEffects = [];
+  let cleanups = [];
+  let currentState;
+  let currentStatuses = new Map();
+  let Component = null;
+  const root = document.getElementById('light-root');
+
+  function useEffect(fn, deps) {
+    const index = hookIndex++;
+    const previous = hookSlots[index];
+    const changed = previous === undefined || previous.deps === undefined || deps === undefined
+      || deps.length !== previous.deps.length
+      || deps.some((dep, i) => !Object.is(dep, previous.deps[i]));
+    hookSlots[index] = { deps };
+    // React keeps an effect's cleanup until that effect re-runs, so mirror that.
+    pendingEffects.push(changed ? { index, fn } : null);
+  }
+
+  const stateSlots = [];
+  function useState(initial) {
+    const index = hookIndex++;
+    if (!(index in stateSlots)) stateSlots[index] = typeof initial === 'function' ? initial() : initial;
+    const set = (next) => {
+      const value = typeof next === 'function' ? next(stateSlots[index]) : next;
+      if (Object.is(value, stateSlots[index])) return;
+      stateSlots[index] = value;
+      render();
+    };
+    return [stateSlots[index], set];
+  }
+
+  function render() {
+    hookIndex = 0;
+    pendingEffects = [];
+    root.replaceChildren(Component({
+      useSessions: (select) => select(currentState),
+      useSessionStatus: (select) => select(currentStatuses),
+    }));
+    for (const item of pendingEffects.splice(0)) {
+      if (item === null) continue;
+      const previous = cleanups[item.index];
+      if (typeof previous === 'function') { try { previous(); } catch {} }
+      const cleanup = item.fn();
+      cleanups[item.index] = typeof cleanup === 'function' ? cleanup : undefined;
+    }
+  }
+
+  // --- fake session roster ---------------------------------------------------
+  const BASE_ROSTER = [
+    { id: 's-a', displayTitle: '会话 A：周报提纲', running: false, origin: undefined, pending: undefined, unread: false },
+    { id: 's-b', displayTitle: '会话 B：依赖升级', running: false, origin: undefined, pending: undefined, unread: false },
+    { id: 's-c', displayTitle: '会话 C：补齐测试', running: false, origin: undefined, pending: undefined, unread: false },
+  ];
+  const roster = BASE_ROSTER.map((item) => ({ ...item }));
+  let child = null;
+
+  /** Restore the three-session roster after the 8-session demo replaced it. */
+  function resetRoster() {
+    roster.splice(0, roster.length, ...BASE_ROSTER.map((item) => ({ ...item })));
+    child = null;
+  }
+
+  function snapshot() {
+    const rows = child === null ? roster : roster.concat([child]);
+    currentState = {
+      ids: roster.map((item) => item.id),
+      byId: Object.fromEntries(rows.map((item) => [item.id, { ...item }])),
+      phase: 'ready',
+      projectionsBySession: {},
+    };
+    // Only Sessions with something to report get a status row.
+    const statuses = new Map();
+    for (const item of rows) {
+      if (item.pending !== undefined) {
+        statuses.set(item.id, {
+          running: item.running,
+          pendingInteraction: { key: item.pending + ':' + item.id, kind: item.pending, sessionId: item.id },
+        });
+      } else if (item.running) {
+        statuses.set(item.id, { running: true });
+      } else if (item.unread) {
+        statuses.set(item.id, { running: false, completionUnread: true });
+      }
+    }
+    currentStatuses = statuses;
+    render();
+  }
+
+  /** Apply one roster state, exactly like a Host snapshot would. */
+  function applyRoster({ running = [], pending = {}, unread = [] }) {
+    for (const item of roster) {
+      item.running = running.includes(item.id);
+      item.pending = pending[item.id];
+      item.unread = unread.includes(item.id);
+    }
+    child = running.includes('s-child')
+      ? { id: 's-child', displayTitle: '会话 A：周报提纲', running: true, origin: 'subagent', parentId: 's-a', projectionValues: { subagent: { label: '抓取发布说明', mode: 'continuable', seq: 1 } }, pending: undefined, unread: false }
+      : null;
+    snapshot();
+  }
+
+  // --- load the plugin bundle ------------------------------------------------
+  window.__ModuleLoader__ = { load(entry) { window.__entry = entry; } };
+</script>
+<script src="../lib/client.js"></script>
+<script>
+  const plugin = window.__entry.factory((id) => {
+    if (id === 'react') return { createElement, useEffect, useState };
+    throw new Error('unexpected require(' + id + ')');
+  });
+
+  // Fake shell navigation: opening a Session marks its completion as seen, the
+  // same way DSH clears completionUnread when the main view shows it.
+  const openLog = [];
+  window.__dshOpenLog = openLog;
+  const fakeWorkspace = {
+    openSession(target) {
+      openLog.push(target);
+      const item = roster.find((entry) => entry.id === target);
+      if (item !== undefined && item.unread) {
+        item.unread = false;
+        snapshot();
+      }
+    },
+  };
+
+  plugin.apply({
+    slots: {
+      inject: (key, callback) => callback(),
+      register: (spec, comp) => { Component = comp; },
+    },
+    inject: (services, callback) => {
+      callback({
+        effect: (fn) => { const cleanup = fn(); return cleanup; },
+        uiWorkspace: fakeWorkspace,
+      });
+    },
+  });
+
+  const PRESETS = {
+    idle: () => applyRoster({}),
+    two: () => applyRoster({ running: ['s-a', 's-b'] }),
+    three: () => applyRoster({ running: ['s-a', 's-b', 's-c'] }),
+    waitingApproval: () => applyRoster({ running: ['s-a', 's-b', 's-c'], pending: { 's-b': 'approval' } }),
+    waitingQuestion: () => applyRoster({ running: ['s-a', 's-b'], pending: { 's-b': 'question' } }),
+    waitingPlan: () => applyRoster({ running: ['s-a', 's-b'], pending: { 's-a': 'plan-review' } }),
+    backgroundDone: () => applyRoster({ unread: ['s-a'] }),
+    oneDone: () => applyRoster({ running: ['s-b'], unread: ['s-a'] }),
+    allDone: () => applyRoster({ unread: ['s-a', 's-b', 's-c'] }),
+    viewDone: () => applyRoster({}),
+    restart: () => applyRoster({ running: ['s-b'] }),
+    subagent: () => applyRoster({ running: ['s-a', 's-child'] }),
+    pendingParent: () => applyRoster({ running: ['s-child'], pending: { 's-a': 'question' } }),
+    parentDoneChildRunning: () => applyRoster({ running: ['s-child'], unread: ['s-a'] }),
+    many: () => {
+      roster.splice(0, roster.length,
+        ...Array.from({ length: 8 }, (_, i) => ({
+          id: `s-m${i}`, displayTitle: `会话 M${i + 1}：批量巡检`, running: false, origin: undefined, pending: undefined, unread: false,
+        })));
+      applyRoster({ running: roster.map((item) => item.id) });
+    },
+  };
+
+  document.querySelectorAll('button[data-preset]').forEach((button) => {
+    button.addEventListener('click', () => {
+      // The 8-session demo replaces the roster; every other preset starts fresh.
+      if (button.dataset.preset !== 'many') resetRoster();
+      (PRESETS[button.dataset.preset] || PRESETS.idle)();
+    });
+  });
+  document.querySelector('button[data-theme-toggle]').addEventListener('click', () => {
+    document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+
+  applyRoster({});
+</script>
+</body>
+</html>
