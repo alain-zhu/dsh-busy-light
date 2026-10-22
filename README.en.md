@@ -33,7 +33,7 @@ dsh plugin --profile web add dsh-busy-light
 ### From git
 
 ```bash
-dsh plugin --profile web add git+https://github.com/<you>/dsh-busy-light.git
+dsh plugin --profile web add git+https://github.com/alain-zhu/dsh-busy-light.git
 ```
 
 ### From a local checkout

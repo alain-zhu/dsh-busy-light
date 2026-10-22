@@ -35,7 +35,7 @@ dsh plugin --profile web add dsh-busy-light
 ### 方式 B：从 git（本仓库）
 
 ```bash
-dsh plugin --profile web add git+https://github.com/<you>/dsh-busy-light.git
+dsh plugin --profile web add git+https://github.com/alain-zhu/dsh-busy-light.git
 ```
 
 ### 方式 C：本地目录（开发调试）

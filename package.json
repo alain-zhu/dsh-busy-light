@@ -32,6 +32,14 @@
     "subagent",
     "favicon"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alain-zhu/dsh-busy-light.git"
+  },
+  "homepage": "https://github.com/alain-zhu/dsh-busy-light#readme",
+  "bugs": {
+    "url": "https://github.com/alain-zhu/dsh-busy-light/issues"
+  },
   "engines": {
     "node": ">=20"
   },
