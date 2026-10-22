@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.0
+
+- Ships as a profile plugin bundle: `dsh.bundle` + `cordis.patch.yml`, so `dsh plugin add` registers the loader row by itself.
+- Declares `engines.dsh` and an icon, the two fields a plugin market index requires.
+
 ## 0.8.6
 
 - Debug surface: `window.__dshBusyLight` exposes `{ version, model }` for the current render.

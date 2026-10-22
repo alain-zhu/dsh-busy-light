@@ -42,7 +42,9 @@ dsh plugin --profile web add git+https://github.com/alain-zhu/dsh-busy-light.git
 dsh plugin --profile web add link:D:/path/to/dsh-busy-light
 ```
 
-Then add the loader row to `~/.dsh/profiles/web/cordis.patch.yml`:
+**Installing registers the plugin.** The package declares `dsh.bundle` (`cordis.patch.yml` inserts its own loader row), so `dsh plugin add` appends it to the profile's `dsh.profile.bundles` and applies the patch — no manual `cordis.patch.yml` edit. Restart `dsh web` and hard-refresh. Check the tooltip for `· v0.9.0` and the console for `[dsh-busy-light] v0.9.0`.
+
+Only hosts that do not reconcile bundles need the manual row in `~/.dsh/profiles/web/cordis.patch.yml`:
 
 ```yaml
 - insert:
@@ -50,9 +52,7 @@ Then add the loader row to `~/.dsh/profiles/web/cordis.patch.yml`:
       name: dsh-busy-light
 ```
 
-Restart `dsh web` and hard-refresh the page. Check the tooltip for `· v0.8.6` and the console for `[dsh-busy-light] v0.8.6`.
-
-`lib/` ships built, so there is no build step and no runtime dependency to install.
+`lib/` ships built: no build step and no runtime dependency. Host compatibility is declared through `engines.dsh` (`>=0.1.0-rc.5`).
 
 ## How a row is chosen
 

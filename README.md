@@ -44,7 +44,9 @@ dsh plugin --profile web add git+https://github.com/alain-zhu/dsh-busy-light.git
 dsh plugin --profile web add link:D:/path/to/dsh-busy-light
 ```
 
-**装完必须补一行 loader 配置**，编辑 `~/.dsh/profiles/web/cordis.patch.yml`，在顶层数组里加：
+**装完即注册**：包里声明了 `dsh.bundle`（`cordis.patch.yml` 负责插入本插件行），`dsh plugin add` 会把包名写进 profile 的 `dsh.profile.bundles` 并应用 patch，不需要手改 `cordis.patch.yml`。重启 `dsh web`、硬刷新页面即可。验证：面板 hover 末尾应出现 `· v0.9.0`，控制台有 `[dsh-busy-light] v0.9.0`。
+
+只有不会自动调和 bundle 的旧宿主，才需要手动往 `~/.dsh/profiles/web/cordis.patch.yml` 里补一行：
 
 ```yaml
 - insert:
@@ -52,9 +54,7 @@ dsh plugin --profile web add link:D:/path/to/dsh-busy-light
       name: dsh-busy-light
 ```
 
-然后重启 `dsh web`，硬刷新页面。验证：面板 hover 末尾应出现 `· v0.8.6`，控制台有 `[dsh-busy-light] v0.8.6`。
-
-安装不需要构建步骤：`lib/` 是提交进仓库的产物，也没有任何运行时依赖。
+安装不需要构建步骤：`lib/` 是提交进仓库的产物，也没有任何运行时依赖；版本兼容靠 `engines.dsh`（`>=0.1.0-rc.5`）声明。
 
 ## 状态是怎么来的
 
