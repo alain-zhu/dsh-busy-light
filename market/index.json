@@ -1,0 +1,48 @@
+{
+  "format": 1,
+  "title": { "en": "alain-zhu DSH plugins", "zh": "alain-zhu DSH 插件" },
+  "description": {
+    "en": "Plugins for the DeepSeek Harness Web GUI.",
+    "zh": "DeepSeek Harness Web GUI 的插件集合。"
+  },
+  "metadata": {
+    "categories": {
+      "ui": { "title": { "en": "Interface", "zh": "界面" } }
+    },
+    "labels": {
+      "community": { "title": { "en": "Community", "zh": "社区" } }
+    }
+  },
+  "plugins": [
+    {
+      "name": "dsh-busy-light",
+      "title": { "en": "Busy Light", "zh": "会话呼吸灯" },
+      "description": {
+        "en": "Draggable tree board: blue breathing for running Sessions, loud amber for Sessions blocked on you, green for unread completions, subagents hanging off their parent, and a self-healing status badge on the browser tab.",
+        "zh": "可拖动的会话树形面板：运行中蓝色呼吸、等你操作时琥珀常亮、后台完成绿色未读，子代理缩进挂在父会话下，浏览器标签同步状态并自愈图标。"
+      },
+      "icon": "icon.svg",
+      "author": "zhumingnian",
+      "homepage": "https://github.com/alain-zhu/dsh-busy-light",
+      "repository": { "url": "https://github.com/alain-zhu/dsh-busy-light" },
+      "metadata": {
+        "category": "ui",
+        "labels": ["community"],
+        "keywords": ["session", "status", "subagent", "favicon", "tree", "panel"]
+      },
+      "dist-tags": { "latest": "0.9.0" },
+      "versions": [
+        {
+          "version": "0.9.0",
+          "publishTimestamp": 1792706643,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/alain-zhu/dsh-busy-light",
+            "commit": "6a1da64e93af6d71ee91b3d1f13ebb50f6e32890"
+          },
+          "engines": { "dsh": ">=0.1.0-rc.5" }
+        }
+      ]
+    }
+  ]
+}

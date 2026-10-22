@@ -56,6 +56,16 @@ dsh plugin --profile web add link:D:/path/to/dsh-busy-light
 
 安装不需要构建步骤：`lib/` 是提交进仓库的产物，也没有任何运行时依赖；版本兼容靠 `engines.dsh`（`>=0.1.0-rc.5`）声明。
 
+## 插件市场收录
+
+仓库自带一份符合 `dsh-plugin-market-index` 格式的索引（`market/index.json`）。在 DSH Web 的 **Discover** 里添加这个索引地址，就能搜到并一键安装：
+
+```
+https://raw.githubusercontent.com/alain-zhu/dsh-busy-light/main/market/index.json
+```
+
+索引里的版本用 `source.type: "git"` 固定到具体 commit，安装的就是这份提交；发新版本时同步改 `dist-tags` / `versions`。
+
 ## 状态是怎么来的
 
 | 行状态 | 判据 | 视觉 |
